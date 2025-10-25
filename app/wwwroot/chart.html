@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+  <h2>Service Profit Analysis</h2>
+  <canvas id="profitChart"></canvas>
+
+  <script>
+    async function loadData() {
+      const res = await fetch('http://localhost:5292/api/reports/cost-vs-revenue');
+      const data = await res.json();
+      const ctx = document.getElementById('profitChart');
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.map(d => d.serviceName),
+          datasets: [{
+            label: 'Profit',
+            data: data.map(d => d.profit),
+            backgroundColor: 'rgba(54, 162, 235, 0.6)'
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: true },
+            title: { display: true, text: 'Profit per Service' }
+          }
+        }
+      });
+    }
+    loadData();
+  </script>
+</body>
+
+</html>
