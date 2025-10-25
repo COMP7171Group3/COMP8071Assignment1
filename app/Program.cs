@@ -38,6 +38,12 @@ app.UseCors();
 app.UseStaticFiles();
 app.MapControllers();
 
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/chart.html");
+    return Task.CompletedTask;
+});
+
 var summaries = new[]
 {
     "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
