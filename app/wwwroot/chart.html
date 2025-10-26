@@ -3,24 +3,66 @@
 
 <head>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    html,
+    body {
+      margin: 0;
+    }
+
+    header {
+      position: relative;
+      margin: 8px auto 8px auto;
+      transform: none;
+      top: auto;
+      left: auto;
+      font-family: "Segoe UI", Roboto, -apple-system, "Helvetica Neue", Arial, sans-serif;
+      text-align: center;
+      padding: 12px 18px;
+      max-width: 980px;
+    }
+
+    #profitChart {
+      display: block;
+      margin: 16px auto;
+      width: 90%;
+      max-width: 1100px;
+    }
+  </style>
 </head>
 
 <body>
-  <h2>Service Profit Analysis</h2>
+  <header>
+    <h2>Service Profit Analysis</h2>
+    <label for="analysisType">Choose an analysis:</label>
+    <select id="analysisType">
+      <option value="profit" selected>Profit</option>
+    </select>
+  </header>
   <canvas id="profitChart"></canvas>
 
   <script>
-    async function loadData() {
-      const res = await fetch('http://localhost:5292/api/reports/cost-vs-revenue');
+    async function loadData(metric) {
+
+      let chart;
+
+      const res = await fetch(`http://localhost:5292/api/reports/analytics?metric=${metric}`);
       const data = await res.json();
+
       const ctx = document.getElementById('profitChart');
+
+      if (chart) chart.destroy();
+
+      const labelMap = {
+        profit: 'Profit',
+      };
+
       new Chart(ctx, {
         type: 'bar',
         data: {
           labels: data.map(d => d.serviceName),
           datasets: [{
-            label: 'Profit',
-            data: data.map(d => d.profit),
+            label: labelMap[metric],
+            data: data.map(d => d.metricValue),
             backgroundColor: 'rgba(54, 162, 235, 0.6)'
           }]
         },
@@ -28,12 +70,17 @@
           responsive: true,
           plugins: {
             legend: { display: true },
-            title: { display: true, text: 'Profit per Service' }
+            title: { display: true, text: `${labelMap[metric]} per Service` }
           }
         }
       });
     }
-    loadData();
+    loadData('profit');
+
+    // Handle dropdown change
+    document.getElementById('analysisType').addEventListener('change', (e) => {
+      loadData(e.target.value);
+    });
   </script>
 </body>
 

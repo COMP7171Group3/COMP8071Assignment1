@@ -15,22 +15,29 @@ namespace app.Controllers
             _connection = connection;
         }
 
-        [HttpGet("cost-vs-revenue")]
-        public async Task<IActionResult> GetCostVsRevenue()
+        [HttpGet("analytics")]
+        public async Task<IActionResult> GetAnalytics([FromQuery] string metric = "profit")
         {
-            string query = @"
-                SELECT 
-                    S.ServiceName,
-                    SUM(I.TotalAmount) AS TotalRevenue,
-                    SUM(P.BaseSalary + P.OvertimePay - P.Deductions) AS TotalCost,
-                    (SUM(I.TotalAmount) - SUM(P.BaseSalary + P.OvertimePay - P.Deductions)) AS Profit
-                FROM FactInvoice I
-                JOIN DimService S ON I.DimServiceServiceID = S.ServiceID
-                JOIN FactServiceAssignment A ON A.DimServiceServiceID = S.ServiceID
-                JOIN FactPayroll P ON P.DimEmployeeEmployeeID = A.DimEmployeeEmployeeID
-                GROUP BY S.ServiceName
-                ORDER BY Profit DESC;
-            ";
+            string query;
+            string orderBy;
+
+            switch (metric.ToLower())
+            {
+
+                case "profit":
+                default:
+                    query = @"
+                        SELECT 
+                            S.ServiceName,
+                            (SUM(I.TotalAmount) - SUM(P.BaseSalary + P.OvertimePay - P.Deductions)) AS MetricValue
+                        FROM FactInvoice I
+                        JOIN DimService S ON I.DimServiceServiceID = S.ServiceID
+                        JOIN FactServiceAssignment A ON A.DimServiceServiceID = S.ServiceID
+                        JOIN FactPayroll P ON P.DimEmployeeEmployeeID = A.DimEmployeeEmployeeID
+                        GROUP BY S.ServiceName
+                        ORDER BY MetricValue DESC;";
+                    break;
+            }
 
             var results = new List<object>();
 
@@ -43,9 +50,9 @@ namespace app.Controllers
                     results.Add(new
                     {
                         ServiceName = reader["ServiceName"].ToString(),
-                        TotalRevenue = Convert.ToDecimal(reader["TotalRevenue"]),
-                        TotalCost = Convert.ToDecimal(reader["TotalCost"]),
-                        Profit = Convert.ToDecimal(reader["Profit"])
+                        MetricValue = reader["MetricValue"] == DBNull.Value
+                            ? 0
+                            : Convert.ToDecimal(reader["MetricValue"])
                     });
                 }
             }
