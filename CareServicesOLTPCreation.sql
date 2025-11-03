@@ -37,7 +37,7 @@ CREATE TABLE Shift (
     StartTime DATE NOT NULL,
     EndTime DATE NOT NULL,
     IsOnCall BIT NOT NULL,
-    FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID),
+    FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID)
 );
 
 CREATE TABLE Client (

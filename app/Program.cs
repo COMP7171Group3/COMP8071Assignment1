@@ -1,5 +1,36 @@
 using Microsoft.Data.SqlClient;
 using System.Text.RegularExpressions;
+using System.Data.Odbc;
+using System.Runtime.InteropServices;
+
+string GetLatestSqlServerOdbcDriver()
+{
+    if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+    {
+        using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+            @"SOFTWARE\ODBC\ODBCINST.INI\ODBC Drivers", false);
+        if (key == null) throw new Exception("No ODBC drivers registry key found.");
+
+        var driverNames = key.GetValueNames()
+            .Where(d => d.StartsWith("ODBC Driver") && d.Contains("SQL Server"))
+            .Select(d => new
+            {
+                Name = d,
+                Version = Version.TryParse(
+                    Regex.Match(d, @"\d+").Value, out var v) ? v : new Version(0,0)
+            })
+            .OrderByDescending(d => d.Version)
+            .ToList();
+
+        if (!driverNames.Any()) throw new Exception("No SQL Server ODBC driver found.");
+
+        return driverNames.First().Name;
+    }
+    else
+    {
+        throw new NotSupportedException("This application requires a Windows environment for ODBC driver detection.");
+    }
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +55,21 @@ var olapConnStr = builder.Configuration.GetConnectionString("OLAPConnection");
 var oltpConnStr = builder.Configuration.GetConnectionString("OLTPConnection");
 var masterConnStr = "Server=.;Database=master;Trusted_Connection=True;TrustServerCertificate=True;";
 
+string driver;
+try
+{
+    driver = GetLatestSqlServerOdbcDriver(); // change this your ODBC driver version here if needed
+    Console.WriteLine($"Using ODBC Driver: {driver}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Failed to detect ODBC driver: {ex.Message}");
+    throw;
+}
+
+var oltpOdbcConnectionString = $"Driver={{{driver}}};Server=.;Database=CareServicesOLTP;Trusted_Connection=Yes;TrustServerCertificate=Yes;";
+var olapOdbcConnectionString = $"Driver={{{driver}}};Server=.;Database=CareServicesOLAP;Trusted_Connection=Yes;TrustServerCertificate=Yes;";
+
 // Ensure databases exist and run creation scripts
 EnsureDatabaseExists("CareServicesOLTP", "../CareServicesOLTPCreation.sql", masterConnStr);
 EnsureDatabaseExists("CareServicesOLAP", "../CareServicesOLAPCreation.sql", masterConnStr);
@@ -44,33 +90,38 @@ void EnsureDatabaseExists(string dbName, string scriptPath, string masterConn)
 
     Console.WriteLine($"{dbName} does not exist. Creating...");
 
-    // Read script
-    var script = File.ReadAllText(scriptPath);
+    // Run creation script
+    ExecuteSqlFile(scriptPath, connection);
+    Console.WriteLine($"{dbName} created successfully.");
 
-    // Split by GO statements
+    // Only seed OLTP database
+    if (dbName.Equals("CareServicesOLTP", StringComparison.OrdinalIgnoreCase))
+    {
+        Console.WriteLine("Seeding OLTP database with initial data...");
+        ExecuteSqlFile("../CareServicesOLTPInsertion.sql", connection);
+        Console.WriteLine("OLTP database seeded successfully.");
+    }
+}
+
+// Helper function to run any SQL file
+void ExecuteSqlFile(string path, SqlConnection connection)
+{
+    var script = File.ReadAllText(path);
     var batches = Regex.Split(script, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
 
     foreach (var batch in batches)
     {
         if (string.IsNullOrWhiteSpace(batch)) continue;
-
-        try
-        {
-            using var cmd = new SqlCommand(batch, connection);
-            cmd.ExecuteNonQuery();  // catch errors if a batch fails
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error executing batch in {dbName}: {ex.Message}");
-            throw; // rethrow if you want app to stop
-        }
+        using var cmd = new SqlCommand(batch, connection);
+        cmd.ExecuteNonQuery();
     }
-
-    Console.WriteLine($"{dbName} created successfully.");
 }
+
+Console.WriteLine("Visit http://localhost:5292/api/etl/run to run OLTP -> ETL -> OLAP.");
 
 // Register OLAP connection for DI
 builder.Services.AddScoped<SqlConnection>(_ => new SqlConnection(olapConnStr));
+builder.Services.AddSingleton(new ETLService(oltpOdbcConnectionString, olapOdbcConnectionString));
 
 var app = builder.Build();
 
@@ -115,7 +166,6 @@ app.MapGet("/weatherforecast", () =>
 .WithName("GetWeatherForecast");
 
 app.Run();
-
 record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
 {
     public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
