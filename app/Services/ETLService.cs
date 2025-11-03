@@ -47,9 +47,13 @@ public class ETLService
         foreach (var table in tables)
         {
             log.AppendLine($"Clearing table {table}...");
-            using var cmd = new OdbcCommand($"DELETE FROM {table};", olapConn);
-            await cmd.ExecuteNonQueryAsync();
+            // 1. Delete all records
+            using (var cmd = new OdbcCommand($"DELETE FROM {table};", olapConn))
+            {
+                await cmd.ExecuteNonQueryAsync();
+            }
         }
+        log.AppendLine("All OLAP tables cleared.");
     }
     public async Task LoadDimEmployeesAsync(OdbcConnection oltpConn, OdbcConnection olapConn, StringBuilder log)
     {
@@ -317,16 +321,15 @@ public class ETLService
         {
             var cmd = new OdbcCommand(
                 @"INSERT INTO FactDamageReport 
-                (ReportID, DimAssetAssetID, ReportDate, RepairCost, Description) 
-                VALUES (?, ?, GETDATE(), ?, ?)", olapConn);
+                (DimAssetAssetID, ReportDate, RepairCost, Description) 
+                VALUES (?, GETDATE(), ?, ?); SELECT SCOPE_IDENTITY();", olapConn);
 
-            cmd.Parameters.AddWithValue("@ReportID", reader["AssetID"]);
             cmd.Parameters.AddWithValue("@DimAssetAssetID", reader["AssetID"]);
             cmd.Parameters.AddWithValue("@RepairCost", 130.0);
             cmd.Parameters.AddWithValue("@Description", "Auto-generated damage report");
 
-            await cmd.ExecuteNonQueryAsync();
-            log.AppendLine($"Inserted ReportID {reader["AssetID"]}");
+            var newId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            log.AppendLine($"Inserted ReportID {newId}");
         }
         log.AppendLine("FactDamageReport loaded successfully.");
     }
@@ -334,25 +337,24 @@ public class ETLService
     {
         log.AppendLine("Loading FactRentalHistory...");
         using var reader = await new OdbcCommand(
-            @"SELECT AssetRentID, AssetID, RenterID, StartDate, EndDate, 1000 AS RentAmount FROM AssetRent", oltpConn)
+            @"SELECT ar.AssetRentID, ar.AssetID, ar.RenterID, ar.StartDate, ar.EndDate, a.MonthlyRent FROM AssetRent ar JOIN Asset a ON ar.AssetID = a.AssetID;", oltpConn)
             .ExecuteReaderAsync();
 
         while (await reader.ReadAsync())
         {
             var cmd = new OdbcCommand(
                 @"INSERT INTO FactRentalHistory 
-                (HistoryID, DimAssetAssetID, DimRenterRenterID, StartDate, EndDate, RentAmount) 
-                VALUES (?, ?, ?, ?, ?, ?)", olapConn);
+                (DimAssetAssetID, DimRenterRenterID, StartDate, EndDate, RentAmount) 
+                VALUES (?, ?, ?, ?, ?); SELECT SCOPE_IDENTITY();", olapConn);
 
-            cmd.Parameters.AddWithValue("@HistoryID", reader["AssetRentID"]);
             cmd.Parameters.AddWithValue("@DimAssetAssetID", reader["AssetID"]);
             cmd.Parameters.AddWithValue("@DimRenterRenterID", reader["RenterID"]);
             cmd.Parameters.AddWithValue("@StartDate", reader["StartDate"]);
             cmd.Parameters.AddWithValue("@EndDate", reader["EndDate"]);
-            cmd.Parameters.AddWithValue("@RentAmount", reader["RentAmount"]);
+            cmd.Parameters.AddWithValue("@RentAmount", reader["MonthlyRent"]);
 
-            await cmd.ExecuteNonQueryAsync();
-            log.AppendLine($"Inserted HistoryID {reader["AssetRentID"]}");
+            var newId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
+            log.AppendLine($"Inserted HistoryID {newId}");
         }
         log.AppendLine("FactRentalHistory loaded successfully.");
     }

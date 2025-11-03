@@ -114,7 +114,7 @@ CREATE TABLE FactServiceRegistration (
 );
 
 CREATE TABLE FactDamageReport (
-    ReportID INT PRIMARY KEY,
+    ReportID INT PRIMARY KEY IDENTITY(1,1),
     DimAssetAssetID INT NOT NULL,
     ReportDate DATE NOT NULL,
     RepairCost REAL NOT NULL,
@@ -123,7 +123,7 @@ CREATE TABLE FactDamageReport (
 );
 
 CREATE TABLE FactRentalHistory (
-    HistoryID INT PRIMARY KEY,
+    HistoryID INT PRIMARY KEY IDENTITY(1,1),
     DimAssetAssetID INT NOT NULL,
     DimRenterRenterID INT NOT NULL,
     StartDate DATE NOT NULL,
