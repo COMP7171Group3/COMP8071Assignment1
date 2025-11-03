@@ -19,7 +19,6 @@ namespace app.Controllers
         public async Task<IActionResult> GetAnalytics([FromQuery] string metric = "profit")
         {
             string query;
-            string orderBy;
 
             switch (metric.ToLower())
             {

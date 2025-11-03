@@ -1,4 +1,5 @@
 using Microsoft.Data.SqlClient;
+using System.Text.RegularExpressions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,8 +19,58 @@ builder.Services.AddCors(options =>
     });
 });
 
-builder.Services.AddScoped<SqlConnection>(_ =>
-    new SqlConnection(builder.Configuration.GetConnectionString("OLAPConnection")));
+// Connection strings
+var olapConnStr = builder.Configuration.GetConnectionString("OLAPConnection");
+var oltpConnStr = builder.Configuration.GetConnectionString("OLTPConnection");
+var masterConnStr = "Server=.;Database=master;Trusted_Connection=True;TrustServerCertificate=True;";
+
+// Ensure databases exist and run creation scripts
+EnsureDatabaseExists("CareServicesOLTP", "../CareServicesOLTPCreation.sql", masterConnStr);
+EnsureDatabaseExists("CareServicesOLAP", "../CareServicesOLAPCreation.sql", masterConnStr);
+
+void EnsureDatabaseExists(string dbName, string scriptPath, string masterConn)
+{
+    using var connection = new SqlConnection(masterConn);
+    connection.Open();
+
+    // Check if database exists
+    var checkCmd = new SqlCommand($"IF DB_ID('{dbName}') IS NULL SELECT 0 ELSE SELECT 1", connection);
+    var exists = (int)checkCmd.ExecuteScalar() == 1;
+    if (exists)
+    {
+        Console.WriteLine($"{dbName} already exists.");
+        return;
+    }
+
+    Console.WriteLine($"{dbName} does not exist. Creating...");
+
+    // Read script
+    var script = File.ReadAllText(scriptPath);
+
+    // Split by GO statements
+    var batches = Regex.Split(script, @"^\s*GO\s*$", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+
+    foreach (var batch in batches)
+    {
+        if (string.IsNullOrWhiteSpace(batch)) continue;
+
+        try
+        {
+            using var cmd = new SqlCommand(batch, connection);
+            cmd.ExecuteNonQuery();  // catch errors if a batch fails
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error executing batch in {dbName}: {ex.Message}");
+            throw; // rethrow if you want app to stop
+        }
+    }
+
+    Console.WriteLine($"{dbName} created successfully.");
+}
+
+// Register OLAP connection for DI
+builder.Services.AddScoped<SqlConnection>(_ => new SqlConnection(olapConnStr));
 
 var app = builder.Build();
 
