@@ -21,3 +21,122 @@ header {
   width: 90%;
   max-width: 1100px;
 }
+
+.chart-container {
+  font-family: 'Segoe UI', sans-serif;
+  padding: 20px;
+  color: #333;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+#analysisType {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  font-size: 14px;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+
+.button-group button {
+  background-color: #007bff;
+  border: none;
+  border-radius: 6px;
+  color: white;
+  padding: 8px 14px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.25s, transform 0.2s;
+}
+
+.button-group button:hover {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+}
+
+.button-group button.active {
+  background-color: #28a745;
+}
+
+.chart-wrapper {
+  margin: 16px auto;
+  width: 90%;
+  max-width: 1100px;
+  height: 500px;
+}
+
+/* Table animation styles */
+.table-container {
+  margin-top: 32px;
+  width: 90%;
+  max-width: 1100px;
+  margin-inline: auto;
+  overflow: hidden;
+  transition: max-height 0.6s ease, opacity 0.4s ease;
+}
+
+.table-container.hidden {
+  max-height: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.table-container.visible {
+  max-height: 1000px; /* Large enough for any table */
+  opacity: 1;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.table-container th,
+.table-container td {
+  border-bottom: 1px solid #ddd;
+  padding: 8px 12px;
+}
+
+.table-container th {
+  background-color: #f4f4f4;
+  border-bottom: 2px solid #ccc;
+}
+
+.button-group button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #007bff;
+  border: 1px solid #ccc;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.button-group button:hover {
+  background: #007bff;
+}
+
+.button-group button.active {
+  background: #007bff;
+  border-color: #66b2ff;
+}
