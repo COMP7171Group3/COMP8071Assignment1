@@ -141,7 +141,7 @@ app.MapControllers();
 
 app.MapGet("/", context =>
 {
-    context.Response.Redirect("/chart.html");
+    context.Response.Redirect("/index.html");
     return Task.CompletedTask;
 });
 

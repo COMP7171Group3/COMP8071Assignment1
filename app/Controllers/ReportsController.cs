@@ -215,7 +215,7 @@ ORDER BY MetricValue DESC, r.ServiceName;
         [HttpGet("export")]
         public async Task<IActionResult> ExportAnalytics([FromQuery] string metric = "profit")
         {
-            //ExcelPackage.License.SetNonCommercialPersonal("Eric");
+            ExcelPackage.License.SetNonCommercialPersonal("Eric");
 
             // For export, we’ll run the same query path, then dump whatever columns come back.
             var queryForExportMetric = metric?.ToLower() switch
