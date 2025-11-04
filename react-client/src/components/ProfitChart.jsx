@@ -28,7 +28,7 @@ const ProfitChart = () => {
     profit: 'Profit',
     damages: 'Maintenance Cost',
     staffing: 'Demand vs Staffing Capacity',
-    retention: 'Customer Retention Rate'
+    collectionrate: 'Customer Retention Rate'
   };
 
   useEffect(() => {
@@ -75,7 +75,7 @@ const ProfitChart = () => {
           <option value="profit">Profit By Service</option>
           <option value="damages">Maintenance Cost</option>
           <option value="staffing">Demand vs Staffing Capacity</option>
-          <option value="retention">Customer Retention</option>
+          <option value="collectionrate">Customer Retention</option>
         </select>
         <button style={{ marginLeft: '10px' }} onClick={() => window.print()}>Print</button>
       </header>
