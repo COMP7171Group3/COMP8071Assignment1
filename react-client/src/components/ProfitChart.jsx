@@ -11,6 +11,13 @@ import { useReward } from 'partycles';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
+// --- Configuration ---
+const BASE_URL =
+  window.location.hostname === 'localhost'
+    ? `http://localhost:5292`
+    : 'https://taupekhana.tail2feabe.ts.net/chart.html';
+
+
 const labelMap = {
   profit: 'Profit',
   damages: 'Maintenance Cost',
@@ -92,7 +99,7 @@ const ProfitChart = () => {
   const handleDownloadExcel = async () => {
     setLoading(true);
     try {
-      const response = await fetch(`http://localhost:5292/api/reports/export?metric=${metric}`);
+      const response = await fetch(`${BASE_URL}/api/reports/export?metric=${metric}`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -109,8 +116,8 @@ const ProfitChart = () => {
 
   const handleEtlClick = async () => {
     const endpoint = isDbEmpty
-      ? 'http://localhost:5292/api/etl/run'
-      : 'http://localhost:5292/api/etl/purge';
+      ? `${BASE_URL}/api/etl/run`
+      : `${BASE_URL}/api/etl/purge`;
 
     try {
       await fetch(endpoint, { method: 'GET' });
