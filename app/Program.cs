@@ -53,7 +53,7 @@ builder.Services.AddCors(options =>
 // Connection strings
 var olapConnStr = builder.Configuration.GetConnectionString("OLAPConnection");
 var oltpConnStr = builder.Configuration.GetConnectionString("OLTPConnection");
-var masterConnStr = "Server=localhost,1433;Database=master;UID=sa;PWD=Fateh!123;TrustServerCertificate=True;";
+var masterConnStr = "Server=localhost,1433;Database=master;UID=sa;PWD=YourStrong!Passw0rd;TrustServerCertificate=True;";
 
 string driver;
 try
@@ -67,8 +67,8 @@ catch (Exception ex)
     throw;
 }
 
-var oltpOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLTP;Uid=sa;Pwd=Fateh!123;TrustServerCertificate=Yes;";
-var olapOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLAP;Uid=sa;Pwd=Fateh!123;TrustServerCertificate=Yes;";
+var oltpOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLTP;Uid=sa;Pwd=YourStrong!Passw0rd;TrustServerCertificate=Yes;";
+var olapOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLAP;Uid=sa;Pwd=YourStrong!Passw0rd;TrustServerCertificate=Yes;";
 // Ensure databases exist and run creation scripts
 EnsureDatabaseExists("CareServicesOLTP", "../CareServicesOLTPCreation.sql", masterConnStr);
 EnsureDatabaseExists("CareServicesOLAP", "../CareServicesOLAPCreation.sql", masterConnStr);
