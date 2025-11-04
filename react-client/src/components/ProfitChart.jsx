@@ -26,6 +26,9 @@ const ProfitChart = () => {
 
   const labelMap = {
     profit: 'Profit',
+    maintenance: 'Maintenance Cost',
+    capacity: 'Demand vs Staffing Capacity',
+    retention: 'Customer Retention Rate'
   };
 
   useEffect(() => {
@@ -66,8 +69,12 @@ const ProfitChart = () => {
           value={metric}
           onChange={(e) => setMetric(e.target.value)}
         >
-          <option value="profit">Profit</option>
+          <option value="profit">Profit By Service</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="capacity">Demand vs Staffing Capacity</option>
+          <option value="retention">Customer Retention</option>
         </select>
+        <button style={{ marginLeft: '10px' }} onClick={() => window.print()}>Print</button>
       </header>
       <div
         className="chart-wrapper"
