@@ -79,7 +79,7 @@ else
 {
     olapConnStr = builder.Configuration.GetConnectionString("OLAPUnixConnection");
     oltpConnStr = builder.Configuration.GetConnectionString("OLTPUnixConnection");
-    driver = "ODBC Driver 17 for SQL Server"; // Change depending on odbc driver using `odbcinst -q -d` command.
+    driver = "ODBC Driver 18 for SQL Server"; // Change depending on odbc driver using `odbcinst -q -d` command.
     masterConnStr = "Server=localhost,1433;Database=master;User Id=sa;Password=YourStrongPassword123!;TrustServerCertificate=True;";
     oltpOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLTP;Uid=sa;Pwd=YourStrongPassword123!;TrustServerCertificate=Yes;";
     olapOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLAP;Uid=sa;Pwd=YourStrongPassword123!;TrustServerCertificate=Yes;";

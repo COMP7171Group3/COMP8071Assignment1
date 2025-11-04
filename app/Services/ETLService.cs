@@ -35,6 +35,17 @@ public class ETLService
         await LoadFactRentalHistoryAsync(oltpConn, olapConn, log);
     }
 
+    public async Task ClearETLAsync(StringBuilder log)
+    {
+        await using var oltpConn = new OdbcConnection(_oltpConnectionString);
+        await using var olapConn = new OdbcConnection(_olapConnectionString);
+
+        await oltpConn.OpenAsync();
+        await olapConn.OpenAsync();
+
+        await ClearOlapTablesAsync(olapConn, log);
+    }
+
     public async Task ClearOlapTablesAsync(OdbcConnection olapConn, StringBuilder log)
     {
         var tables = new string[]
