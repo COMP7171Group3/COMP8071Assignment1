@@ -1,0 +1,23 @@
+html,
+body {
+  margin: 0;
+}
+
+header {
+  position: relative;
+  margin: 8px auto 8px auto;
+  transform: none;
+  top: auto;
+  left: auto;
+  font-family: "Segoe UI", Roboto, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  text-align: center;
+  padding: 12px 18px;
+  max-width: 980px;
+}
+
+#profitChart {
+  display: block;
+  margin: 16px auto;
+  width: 90%;
+  max-width: 1100px;
+}
