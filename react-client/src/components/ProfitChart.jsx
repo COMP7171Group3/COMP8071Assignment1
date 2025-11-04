@@ -26,8 +26,8 @@ const ProfitChart = () => {
 
   const labelMap = {
     profit: 'Profit',
-    maintenance: 'Maintenance Cost',
-    capacity: 'Demand vs Staffing Capacity',
+    damages: 'Maintenance Cost',
+    staffing: 'Demand vs Staffing Capacity',
     retention: 'Customer Retention Rate'
   };
 
@@ -41,21 +41,24 @@ const ProfitChart = () => {
     loadData();
   }, [metric]);
 
+  const labelKey = data.length ? Object.keys(data[0])[0] : 'label';
+  const valueKey = data.length ? Object.keys(data[0]).find(k => k.toLowerCase().includes('metric')) : 'metricValue';
+
   const chartData = {
-    labels: data.map(d => d.serviceName),
+    labels: data.map(d => d[labelKey]),
     datasets: [{
       label: labelMap[metric],
-      data: data.map(d => d.metricValue),
+      data: data.map(d => d[valueKey]),
       backgroundColor: 'rgba(54, 162, 235, 0.6)'
     }]
   };
 
   const options = {
     responsive: true,
-    maintainAspectRatio: false, // <-- allow chart to fill container height
+    maintainAspectRatio: false,
     plugins: {
       legend: { display: true },
-      title: { display: true, text: `${labelMap[metric]} per Service` }
+      title: { display: true, text: `${labelMap[metric]} Analysis` }
     }
   };
 
@@ -70,8 +73,8 @@ const ProfitChart = () => {
           onChange={(e) => setMetric(e.target.value)}
         >
           <option value="profit">Profit By Service</option>
-          <option value="maintenance">Maintenance</option>
-          <option value="capacity">Demand vs Staffing Capacity</option>
+          <option value="damages">Maintenance Cost</option>
+          <option value="staffing">Demand vs Staffing Capacity</option>
           <option value="retention">Customer Retention</option>
         </select>
         <button style={{ marginLeft: '10px' }} onClick={() => window.print()}>Print</button>
