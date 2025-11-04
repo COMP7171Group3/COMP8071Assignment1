@@ -32,7 +32,7 @@ INSERT INTO Payment (
     PayDate,
     OverTimePay,
     Deductions,
-    NetPay
+    BasePay
 )
 VALUES
     (1001, 1, '2025-10-31', 300.00, 450.00, 5200.00),
