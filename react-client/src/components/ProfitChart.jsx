@@ -9,20 +9,15 @@ import {
   Tooltip,
   Legend
 } from 'chart.js';
+import { Printer, FileSpreadsheet, Eye, EyeOff } from 'lucide-react'; // 👈 Add these
 
-// Register ChartJS components
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-);
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
 const ProfitChart = () => {
   const [data, setData] = useState([]);
   const [metric, setMetric] = useState('profit');
+  const [showTable, setShowTable] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const labelMap = {
     profit: 'Profit',
@@ -37,20 +32,23 @@ const ProfitChart = () => {
       const jsonData = await res.json();
       setData(jsonData);
     };
-
     loadData();
   }, [metric]);
 
   const labelKey = data.length ? Object.keys(data[0])[0] : 'label';
-  const valueKey = data.length ? Object.keys(data[0]).find(k => k.toLowerCase().includes('metric')) : 'metricValue';
+  const valueKey = data.length
+    ? Object.keys(data[0]).find(k => k.toLowerCase().includes('metric')) || Object.keys(data[0])[1]
+    : 'metricValue';
 
   const chartData = {
     labels: data.map(d => d[labelKey]),
-    datasets: [{
-      label: labelMap[metric],
-      data: data.map(d => d[valueKey]),
-      backgroundColor: 'rgba(54, 162, 235, 0.6)'
-    }]
+    datasets: [
+      {
+        label: labelMap[metric],
+        data: data.map(d => d[valueKey]),
+        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+      }
+    ]
   };
 
   const options = {
@@ -62,28 +60,98 @@ const ProfitChart = () => {
     }
   };
 
+  const handleDownloadExcel = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('http://localhost:5292/api/reports/export?metric=profit');
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'profit-analytics.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Download failed', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="chart-container">
       <header>
         <h2>Service Profit Analysis</h2>
-        <label htmlFor="analysisType">Choose an analysis: </label>
-        <select 
-          id="analysisType"
-          value={metric}
-          onChange={(e) => setMetric(e.target.value)}
-        >
-          <option value="profit">Profit By Service</option>
-          <option value="damages">Maintenance Cost</option>
-          <option value="staffing">Demand vs Staffing Capacity</option>
-          <option value="collectionrate">Customer Retention</option>
-        </select>
-        <button style={{ marginLeft: '10px' }} onClick={() => window.print()}>Print</button>
+        <div className="controls">
+          <label htmlFor="analysisType">Choose an analysis: </label>
+          <select
+            id="analysisType"
+            value={metric}
+            onChange={(e) => setMetric(e.target.value)}
+          >
+            <option value="profit">Profit By Service</option>
+            <option value="damages">Maintenance Cost</option>
+            <option value="staffing">Demand vs Staffing Capacity</option>
+            <option value="collectionrate">Customer Retention</option>
+          </select>
+
+          <div className="button-group">
+            <button onClick={() => window.print()}>
+              <Printer size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+              Print
+            </button>
+            <button onClick={handleDownloadExcel} disabled={loading}>
+              <FileSpreadsheet size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+              {loading ? 'Preparing…' : 'Download Excel'}
+            </button>
+            <button
+              onClick={() => setShowTable(!showTable)}
+              className={showTable ? 'active' : ''}
+            >
+              {showTable ? (
+                <>
+                  <EyeOff size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                  Hide Table
+                </>
+              ) : (
+                <>
+                  <Eye size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+                  Show Table
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </header>
-      <div
-        className="chart-wrapper"
-        style={{ margin: '16px auto', width: '90%', maxWidth: '1100px', height: 500 }}
-      >
+
+      <div className="chart-wrapper">
         <Bar data={chartData} options={options} />
+      </div>
+
+      <div className={`table-container ${showTable ? 'visible' : 'hidden'}`}>
+        {data.length > 0 && (
+          <>
+            <h3>{labelMap[metric]} Data</h3>
+            <table>
+              <thead>
+                <tr>
+                  {Object.keys(data[0]).map((key) => (
+                    <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((row, i) => (
+                  <tr key={i}>
+                    {Object.values(row).map((val, j) => (
+                      <td key={j}>{val}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
       </div>
     </div>
   );
