@@ -27,7 +27,7 @@ CREATE TABLE Payment (
     PayDate DATE NOT NULL,
     OverTimePay REAL NOT NULL,
     Deductions REAL NOT NULL,
-    NetPay REAL NOT NULL,
+    BasePay REAL NOT NULL,
     FOREIGN KEY (EmployeeID) REFERENCES Employee(EmployeeID)
 );
 
