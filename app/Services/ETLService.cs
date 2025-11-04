@@ -341,7 +341,7 @@ public class ETLService
                 VALUES (?, GETDATE(), ?, ?); SELECT SCOPE_IDENTITY();", olapConn);
 
             cmd.Parameters.AddWithValue("@DimAssetAssetID", reader["AssetID"]);
-            cmd.Parameters.AddWithValue("@RepairCost", 130.0);
+            cmd.Parameters.AddWithValue("@RepairCost", Random.Shared.NextInt64(100, 500));
             cmd.Parameters.AddWithValue("@Description", "Auto-generated damage report");
 
             var newId = Convert.ToInt32(await cmd.ExecuteScalarAsync());
