@@ -1,44 +1,47 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Bar } from 'react-chartjs-2';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend
-} from 'chart.js';
-import { Printer, FileSpreadsheet, Eye, EyeOff } from 'lucide-react'; // 👈 Add these
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
+import { Printer, FileSpreadsheet, Eye, EyeOff, DatabaseBackup, DatabaseZap} from 'lucide-react';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
+
+const labelMap = {
+  profit: 'Profit',
+  damages: 'Maintenance Cost',
+  staffing: 'Demand vs Staffing Capacity',
+  collectionrate: 'Customer Retention Rate'
+};
 
 const ProfitChart = () => {
   const [data, setData] = useState([]);
   const [metric, setMetric] = useState('profit');
   const [showTable, setShowTable] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isDbEmpty, setIsDbEmpty] = useState(true);
 
-  const labelMap = {
-    profit: 'Profit',
-    damages: 'Maintenance Cost',
-    staffing: 'Demand vs Staffing Capacity',
-    collectionrate: 'Customer Retention Rate'
-  };
-
-  useEffect(() => {
-    const loadData = async () => {
-      const res = await fetch(`/api/reports/analytics?metric=${metric}`);
+  // --- Common reusable fetch function ---
+  const fetchMetricData = useCallback(async (metricName = metric) => {
+    try {
+      const res = await fetch(`/api/reports/analytics?metric=${metricName}`);
       const jsonData = await res.json();
       setData(jsonData);
-    };
-    loadData();
+      setIsDbEmpty(jsonData.length === 0);
+    } catch (err) {
+      console.error('Failed to load data:', err);
+    }
   }, [metric]);
 
+  // --- Load data whenever metric changes ---
+  useEffect(() => {
+    fetchMetricData();
+  }, [metric, fetchMetricData]);
+
+  // --- Chart config ---
   const labelKey = data.length ? Object.keys(data[0])[0] : 'label';
-  const valueKey = data.length
-    ? Object.keys(data[0]).find(k => k.toLowerCase().includes('metric')) || Object.keys(data[0])[1]
-    : 'metricValue';
+  const valueKey =
+    data.length && Object.keys(data[0]).find(k => k.toLowerCase().includes('metric'))
+      ? Object.keys(data[0]).find(k => k.toLowerCase().includes('metric'))
+      : data.length ? Object.keys(data[0])[1] : 'metricValue';
 
   const chartData = {
     labels: data.map(d => d[labelKey]),
@@ -51,7 +54,7 @@ const ProfitChart = () => {
     ]
   };
 
-  const options = {
+  const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
@@ -60,21 +63,35 @@ const ProfitChart = () => {
     }
   };
 
+  // --- Handlers ---
   const handleDownloadExcel = async () => {
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:5292/api/reports/export?metric=profit');
+      const response = await fetch(`http://localhost:5292/api/reports/export?metric=${metric}`);
       const blob = await response.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'profit-analytics.xlsx';
+      a.download = `${metric}-analytics.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (err) {
       console.error('Download failed', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEtlClick = async () => {
+    const endpoint = isDbEmpty
+      ? 'http://localhost:5292/api/etl/run'
+      : 'http://localhost:5292/api/etl/purge';
+
+    try {
+      await fetch(endpoint, { method: 'GET' });
+      await fetchMetricData(); // reload after ETL
+    } catch (err) {
+      console.error('ETL action failed:', err);
     }
   };
 
@@ -97,26 +114,37 @@ const ProfitChart = () => {
 
           <div className="button-group">
             <button onClick={() => window.print()}>
-              <Printer size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-              Print
+              <Printer size={16} className="icon" /> Print
             </button>
+
             <button onClick={handleDownloadExcel} disabled={loading}>
-              <FileSpreadsheet size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+              <FileSpreadsheet size={16} className="icon" />
               {loading ? 'Preparing…' : 'Download Excel'}
             </button>
+
             <button
-              onClick={() => setShowTable(!showTable)}
+              onClick={() => setShowTable(prev => !prev)}
               className={showTable ? 'active' : ''}
             >
               {showTable ? (
                 <>
-                  <EyeOff size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-                  Hide Table
+                  <EyeOff size={16} className="icon" /> Hide Table
                 </>
               ) : (
                 <>
-                  <Eye size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-                  Show Table
+                  <Eye size={16} className="icon" /> Show Table
+                </>
+              )}
+            </button>
+
+            <button onClick={handleEtlClick}>
+              {isDbEmpty ? (
+                <>
+                  <DatabaseZap size={16} className="icon" /> Run ETL
+                </>
+              ) : (
+                <>
+                  <DatabaseBackup size={16} className="icon" /> Purge DB
                 </>
               )}
             </button>
@@ -125,34 +153,32 @@ const ProfitChart = () => {
       </header>
 
       <div className="chart-wrapper">
-        <Bar data={chartData} options={options} />
+        <Bar data={chartData} options={chartOptions} />
       </div>
 
-      <div className={`table-container ${showTable ? 'visible' : 'hidden'}`}>
-        {data.length > 0 && (
-          <>
-            <h3>{labelMap[metric]} Data</h3>
-            <table>
-              <thead>
-                <tr>
-                  {Object.keys(data[0]).map((key) => (
-                    <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</th>
+      {showTable && data.length > 0 && (
+        <div className="table-container visible">
+          <h3>{labelMap[metric]} Data</h3>
+          <table>
+            <thead>
+              <tr>
+                {Object.keys(data[0]).map((key) => (
+                  <th key={key}>{key.charAt(0).toUpperCase() + key.slice(1)}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.map((row, i) => (
+                <tr key={i}>
+                  {Object.values(row).map((val, j) => (
+                    <td key={j}>{val}</td>
                   ))}
                 </tr>
-              </thead>
-              <tbody>
-                {data.map((row, i) => (
-                  <tr key={i}>
-                    {Object.values(row).map((val, j) => (
-                      <td key={j}>{val}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
