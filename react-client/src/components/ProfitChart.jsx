@@ -1,7 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend } from 'chart.js';
-import { Printer, FileSpreadsheet, Eye, EyeOff, DatabaseBackup, DatabaseZap} from 'lucide-react';
+import { Printer, FileSpreadsheet, Eye, EyeOff, DatabaseBackup, DatabaseZap } from 'lucide-react';
+
+import { useReward } from 'partycles';
+
+
+
+
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 
@@ -18,6 +24,19 @@ const ProfitChart = () => {
   const [showTable, setShowTable] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isDbEmpty, setIsDbEmpty] = useState(true);
+  const [theme, setTheme] = useState('light');
+
+  // --- Initialize confetti effect ---
+  const { reward, isAnimating } = useReward('rewardId', 'confetti');
+
+  // --- Detect system theme ---
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const updateTheme = () => setTheme(mq.matches ? 'dark' : 'light');
+    updateTheme();
+    mq.addEventListener('change', updateTheme);
+    return () => mq.removeEventListener('change', updateTheme);
+  }, []);
 
   // --- Common reusable fetch function ---
   const fetchMetricData = useCallback(async (metricName = metric) => {
@@ -31,12 +50,10 @@ const ProfitChart = () => {
     }
   }, [metric]);
 
-  // --- Load data whenever metric changes ---
   useEffect(() => {
     fetchMetricData();
   }, [metric, fetchMetricData]);
 
-  // --- Chart config ---
   const labelKey = data.length ? Object.keys(data[0])[0] : 'label';
   const valueKey =
     data.length && Object.keys(data[0]).find(k => k.toLowerCase().includes('metric'))
@@ -49,7 +66,8 @@ const ProfitChart = () => {
       {
         label: labelMap[metric],
         data: data.map(d => d[valueKey]),
-        backgroundColor: 'rgba(54, 162, 235, 0.6)'
+        backgroundColor: theme === 'dark' ? 'rgba(255, 137, 2, 0.6)' : 'rgba(54, 162, 235, 0.6)',
+        borderRadius: 6,
       }
     ]
   };
@@ -58,12 +76,19 @@ const ProfitChart = () => {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { display: true },
-      title: { display: true, text: `${labelMap[metric]} Analysis` }
+      legend: { display: true, labels: { color: theme === 'dark' ? '#ddd' : '#222' } },
+      title: {
+        display: true,
+        text: `${labelMap[metric]} Analysis`,
+        color: theme === 'dark' ? '#fff' : '#000'
+      }
+    },
+    scales: {
+      x: { ticks: { color: theme === 'dark' ? '#ccc' : '#333' } },
+      y: { ticks: { color: theme === 'dark' ? '#ccc' : '#333' } }
     }
   };
 
-  // --- Handlers ---
   const handleDownloadExcel = async () => {
     setLoading(true);
     try {
@@ -89,23 +114,21 @@ const ProfitChart = () => {
 
     try {
       await fetch(endpoint, { method: 'GET' });
-      await fetchMetricData(); // reload after ETL
+      await fetchMetricData();
     } catch (err) {
       console.error('ETL action failed:', err);
     }
   };
 
   return (
-    <div className="chart-container">
+    <div className={`dashboard ${theme}`} data-theme={theme}>
       <header>
-        <h2>Service Profit Analysis</h2>
+        <h2>Analysis</h2>
         <div className="controls">
-          <label htmlFor="analysisType">Choose an analysis: </label>
-          <select
-            id="analysisType"
-            value={metric}
-            onChange={(e) => setMetric(e.target.value)}
-          >
+          <select value={metric} onChange={(e) => {
+            setMetric(e.target.value);
+            reward();
+          }}>
             <option value="profit">Profit By Service</option>
             <option value="damages">Maintenance Cost</option>
             <option value="staffing">Demand vs Staffing Capacity</option>
@@ -114,50 +137,28 @@ const ProfitChart = () => {
 
           <div className="button-group">
             <button onClick={() => window.print()}>
-              <Printer size={16} className="icon" /> Print
+              <Printer size={16} /> Print
             </button>
-
             <button onClick={handleDownloadExcel} disabled={loading}>
-              <FileSpreadsheet size={16} className="icon" />
+              <FileSpreadsheet size={16} />
               {loading ? 'Preparing…' : 'Download Excel'}
             </button>
-
-            <button
-              onClick={() => setShowTable(prev => !prev)}
-              className={showTable ? 'active' : ''}
-            >
-              {showTable ? (
-                <>
-                  <EyeOff size={16} className="icon" /> Hide Table
-                </>
-              ) : (
-                <>
-                  <Eye size={16} className="icon" /> Show Table
-                </>
-              )}
+            <button onClick={() => setShowTable(p => !p)}>
+              {showTable ? <><EyeOff size={16} /> Hide Table</> : <><Eye size={16} /> Show Table</>}
             </button>
-
             <button onClick={handleEtlClick}>
-              {isDbEmpty ? (
-                <>
-                  <DatabaseZap size={16} className="icon" /> Run ETL
-                </>
-              ) : (
-                <>
-                  <DatabaseBackup size={16} className="icon" /> Purge DB
-                </>
-              )}
+              {isDbEmpty ? <><DatabaseZap size={16} /> Run ETL</> : <><DatabaseBackup size={16} /> Purge DB</>}
             </button>
           </div>
         </div>
       </header>
 
-      <div className="chart-wrapper">
+      <div id='rewardId' className="chart-wrapper">
         <Bar data={chartData} options={chartOptions} />
       </div>
 
       {showTable && data.length > 0 && (
-        <div className="table-container visible">
+        <div className="table-container">
           <h3>{labelMap[metric]} Data</h3>
           <table>
             <thead>
@@ -182,5 +183,10 @@ const ProfitChart = () => {
     </div>
   );
 };
+  
+
+//    <button id="rewardId" onClick={reward}>
+//      Click me!
+//    </button>
 
 export default ProfitChart;
