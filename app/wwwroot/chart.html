@@ -2,86 +2,119 @@
 <html>
 
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    html,
-    body {
-      margin: 0;
-    }
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+    <style>
+        html,
+        body {
+            margin: 0;
+        }
 
-    header {
-      position: relative;
-      margin: 8px auto 8px auto;
-      transform: none;
-      top: auto;
-      left: auto;
-      font-family: "Segoe UI", Roboto, -apple-system, "Helvetica Neue", Arial, sans-serif;
-      text-align: center;
-      padding: 12px 18px;
-      max-width: 980px;
-    }
+        header {
+            position: relative;
+            margin: 8px auto 8px auto;
+            transform: none;
+            top: auto;
+            left: auto;
+            font-family: "Segoe UI", Roboto, -apple-system, "Helvetica Neue", Arial, sans-serif;
+            text-align: center;
+            padding: 12px 18px;
+            max-width: 980px;
+        }
 
-    #profitChart {
-      display: block;
-      margin: 16px auto;
-      width: 90%;
-      max-width: 1100px;
-    }
-  </style>
+        #profitChart {
+            display: block;
+            margin: 16px auto;
+            width: 90%;
+            max-width: 1100px;
+        }
+
+        #downloadBtn {
+            display: block;
+            margin: 16px auto;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #downloadBtn.loading {
+            pointer-events: none;
+            opacity: 0.6;
+        }
+    </style>
 </head>
 
 <body>
-  <header>
+<header>
     <h2>Service Profit Analysis</h2>
     <label for="analysisType">Choose an analysis:</label>
     <select id="analysisType">
-      <option value="profit" selected>Profit</option>
+        <option value="profit" selected>Profit</option>
     </select>
-  </header>
-  <canvas id="profitChart"></canvas>
+    <button id="downloadBtn">Download Excel</button>
+</header>
+<canvas id="profitChart"></canvas>
 
-  <script>
+<script src="script.js"></script>
+<script>
     async function loadData(metric) {
+        const res = await fetch(`http://localhost:5292/api/reports/analytics?metric=${metric}`);
+        const data = await res.json();
 
-      let chart;
+        const ctx = document.getElementById('profitChart');
+        if (window.chart) window.chart.destroy();
 
-      const res = await fetch(`http://localhost:5292/api/reports/analytics?metric=${metric}`);
-      const data = await res.json();
+        const labelMap = { profit: 'Profit' };
 
-      const ctx = document.getElementById('profitChart');
+        window.chart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: data.map(d => d.serviceName),
+                datasets: [{
+                    label: labelMap[metric],
+                    data: data.map(d => d.metricValue),
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)'
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { display: true },
+                    title: { display: true, text: `${labelMap[metric]} per Service` }
+                }
+            }
+        });
 
-      if (chart) chart.destroy();
-
-      const labelMap = {
-        profit: 'Profit',
-      };
-
-      new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: data.map(d => d.serviceName),
-          datasets: [{
-            label: labelMap[metric],
-            data: data.map(d => d.metricValue),
-            backgroundColor: 'rgba(54, 162, 235, 0.6)'
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { display: true },
-            title: { display: true, text: `${labelMap[metric]} per Service` }
-          }
-        }
-      });
+        // Save data globally for export
+        window.currentChartData = data;
+        window.currentMetric = metric;
     }
+
     loadData('profit');
 
-    // Handle dropdown change
     document.getElementById('analysisType').addEventListener('change', (e) => {
-      loadData(e.target.value);
+        loadData(e.target.value);
     });
-  </script>
+
+    document.getElementById('downloadBtn').addEventListener('click', async (e) => {
+        const btn = e.target;
+        btn.textContent = 'Preparing…';
+        btn.classList.add('loading');
+
+        const response = await fetch(`http://localhost:5292/api/reports/export?metric=profit`);
+        const blob = await response.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'profit-analytics.xlsx';
+        a.click();
+        URL.revokeObjectURL(url);
+
+        btn.textContent = 'Download Excel';
+        btn.classList.remove('loading');
+    });
+
+</script>
 </body>
 
 </html>
