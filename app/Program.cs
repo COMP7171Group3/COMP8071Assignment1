@@ -17,7 +17,7 @@ string GetLatestSqlServerOdbcDriver()
             {
                 Name = d,
                 Version = Version.TryParse(
-                    Regex.Match(d, @"\d+").Value, out var v) ? v : new Version(0,0)
+                    Regex.Match(d, @"\d+").Value, out var v) ? v : new Version(0, 0)
             })
             .OrderByDescending(d => d.Version)
             .ToList();
@@ -44,31 +44,50 @@ builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
     {
         policy
-            .WithOrigins("http://localhost:5292")
+            .WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
 
 // Connection strings
-var olapConnStr = builder.Configuration.GetConnectionString("OLAPConnection");
-var oltpConnStr = builder.Configuration.GetConnectionString("OLTPConnection");
-var masterConnStr = "Server=.;Database=master;Trusted_Connection=True;TrustServerCertificate=True;";
-
-string driver;
-try
+var olapConnStr = "";
+var oltpConnStr = "";
+string masterConnStr = "";
+string oltpOdbcConnectionString = "";
+string olapOdbcConnectionString = "";
+string driver = "";
+if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 {
-    driver = GetLatestSqlServerOdbcDriver(); // change this your ODBC driver version here if needed
-    Console.WriteLine($"Using ODBC Driver: {driver}");
+    olapConnStr = builder.Configuration.GetConnectionString("OLAPWindowsConnection");
+    oltpConnStr = builder.Configuration.GetConnectionString("OLTPWindowsConnection");
+    try
+    {
+        driver = GetLatestSqlServerOdbcDriver(); // change this your ODBC driver version here if needed
+        Console.WriteLine($"Using ODBC Driver: {driver}");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Failed to detect ODBC driver: {ex.Message}");
+        throw;
+    }
+    masterConnStr = "Server=.;Database=master;Trusted_Connection=True;TrustServerCertificate=True;";
+    oltpOdbcConnectionString = $"Driver={{{driver}}};Server=.;Database=CareServicesOLTP;Trusted_Connection=Yes;TrustServerCertificate=Yes;";
+    olapOdbcConnectionString = $"Driver={{{driver}}};Server=.;Database=CareServicesOLAP;Trusted_Connection=Yes;TrustServerCertificate=Yes;";
 }
-catch (Exception ex)
+else
 {
-    Console.WriteLine($"Failed to detect ODBC driver: {ex.Message}");
-    throw;
+    olapConnStr = builder.Configuration.GetConnectionString("OLAPUnixConnection");
+    oltpConnStr = builder.Configuration.GetConnectionString("OLTPUnixConnection");
+    driver = "ODBC Driver 18 for SQL Server"; // Change depending on odbc driver using `odbcinst -q -d` command.
+    masterConnStr = "Server=localhost,1433;Database=master;User Id=sa;Password=YourStrongPassword123!;TrustServerCertificate=True;";
+    oltpOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLTP;Uid=sa;Pwd=YourStrongPassword123!;TrustServerCertificate=Yes;";
+    olapOdbcConnectionString = $"Driver={{{driver}}};Server=localhost,1433;Database=CareServicesOLAP;Uid=sa;Pwd=YourStrongPassword123!;TrustServerCertificate=Yes;";
 }
 
-var oltpOdbcConnectionString = $"Driver={{{driver}}};Server=.;Database=CareServicesOLTP;Trusted_Connection=Yes;TrustServerCertificate=Yes;";
-var olapOdbcConnectionString = $"Driver={{{driver}}};Server=.;Database=CareServicesOLAP;Trusted_Connection=Yes;TrustServerCertificate=Yes;";
+
+
+
 
 // Ensure databases exist and run creation scripts
 EnsureDatabaseExists("CareServicesOLTP", "../CareServicesOLTPCreation.sql", masterConnStr);
@@ -142,7 +161,7 @@ app.MapControllers();
 
 app.MapGet("/", context =>
 {
-    context.Response.Redirect("/chart.html");
+    context.Response.Redirect("/index.html");
     return Task.CompletedTask;
 });
 

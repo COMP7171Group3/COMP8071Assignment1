@@ -35,6 +35,17 @@ public class ETLService
         await LoadFactRentalHistoryAsync(oltpConn, olapConn, log);
     }
 
+    public async Task ClearETLAsync(StringBuilder log)
+    {
+        await using var oltpConn = new OdbcConnection(_oltpConnectionString);
+        await using var olapConn = new OdbcConnection(_olapConnectionString);
+
+        await oltpConn.OpenAsync();
+        await olapConn.OpenAsync();
+
+        await ClearOlapTablesAsync(olapConn, log);
+    }
+
     public async Task ClearOlapTablesAsync(OdbcConnection olapConn, StringBuilder log)
     {
         var tables = new string[]
@@ -163,14 +174,30 @@ public class ETLService
     {
         log.AppendLine("Loading FactPayroll...");
         using var reader = await new OdbcCommand(
-            "SELECT PaymentID, EmployeeID, PayDate, OverTimePay, Deductions, NetPay FROM Payment", oltpConn)
+            "SELECT PaymentID, EmployeeID, PayDate, OverTimePay, Deductions, BasePay FROM Payment", oltpConn)
             .ExecuteReaderAsync();
 
         Random rand = new Random();
 
         while (await reader.ReadAsync())
         {   
-            int baseSalary = rand.Next(1, 11) * 100;
+            int iBase = reader.GetOrdinal("BasePay");
+            int iOT = reader.GetOrdinal("OverTimePay");
+            int iDed = reader.GetOrdinal("Deductions");
+            decimal basePay =
+                reader.IsDBNull(iBase)
+                    ? 0m
+                    : Convert.ToDecimal(reader.GetValue(iBase));
+            decimal overTime =
+                reader.IsDBNull(iOT)
+                    ? 0m
+                    : Convert.ToDecimal(reader.GetValue(iOT));
+            decimal deductions =
+                reader.IsDBNull(iDed)
+                    ? 0m
+                    : Convert.ToDecimal(reader.GetValue(iDed));
+
+            decimal netPay = basePay + overTime - deductions;
             var cmd = new OdbcCommand(
                 @"INSERT INTO FactPayroll 
                 (PayrollID, DimEmployeeEmployeeID, PayDate, BaseSalary, OverTimePay, Deductions, NetPay) 
@@ -178,10 +205,10 @@ public class ETLService
             cmd.Parameters.AddWithValue("@PayrollID", reader["PaymentID"]);
             cmd.Parameters.AddWithValue("@DimEmployeeEmployeeID", reader["EmployeeID"]);
             cmd.Parameters.AddWithValue("@PayDate", reader["PayDate"]);
-            cmd.Parameters.AddWithValue("@BaseSalary", baseSalary);
+            cmd.Parameters.AddWithValue("@BaseSalary", reader["basePay"]);
             cmd.Parameters.AddWithValue("@OverTimePay", reader["OverTimePay"]);
             cmd.Parameters.AddWithValue("@Deductions", reader["Deductions"]);
-            cmd.Parameters.AddWithValue("@NetPay", reader["NetPay"]);
+            cmd.Parameters.AddWithValue("@NetPay", netPay);
             await cmd.ExecuteNonQueryAsync();
             log.AppendLine($"Inserted PayrollID {reader["PaymentID"]}");
         }
@@ -325,7 +352,7 @@ public class ETLService
                 VALUES (?, GETDATE(), ?, ?); SELECT SCOPE_IDENTITY();", olapConn);
 
             cmd.Parameters.AddWithValue("@DimAssetAssetID", reader["AssetID"]);
-            cmd.Parameters.AddWithValue("@RepairCost", 130.0);
+            cmd.Parameters.AddWithValue("@RepairCost", Random.Shared.NextInt64(100, 500));
             cmd.Parameters.AddWithValue("@Description", "Auto-generated damage report");
 
             var newId = Convert.ToInt32(await cmd.ExecuteScalarAsync());

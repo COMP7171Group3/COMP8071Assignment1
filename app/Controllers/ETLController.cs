@@ -31,4 +31,23 @@ public class ETLController : ControllerBase
 
         return Content(log.ToString(), "text/plain");
     }
+    
+    [HttpGet("purge")]
+    public async Task<IActionResult> RunETLClear()
+    {
+        var log = new StringBuilder();
+        log.AppendLine("Clearing...");
+
+        try
+        {
+            await _etlService.ClearETLAsync(log);
+            log.AppendLine("Clear completed successfully!");
+        }
+        catch (Exception ex)
+        {
+            log.AppendLine($"Clear failed: {ex.Message}");
+        }
+
+        return Content(log.ToString(), "text/plain");
+    }
 }
