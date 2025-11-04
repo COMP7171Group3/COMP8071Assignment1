@@ -148,35 +148,18 @@ ORDER BY [Month];
 
 
                 case "staffing":
-                    // Demand (assignments) vs capacity (approx 8h per shift).
                     return @"
-;WITH Demand AS (
-    SELECT
-        DATEFROMPARTS(YEAR(sa.ScheduledDate), MONTH(sa.ScheduledDate), 1) AS MonthStart,
-        s.ServiceName,
-        COUNT(*) AS TotalScheduledServices
-    FROM FactServiceAssignment sa
-    JOIN DimService s ON s.ServiceID = sa.DimServiceServiceID
-    GROUP BY DATEFROMPARTS(YEAR(sa.ScheduledDate), MONTH(sa.ScheduledDate), 1), s.ServiceName
-),
-Capacity AS (
-    SELECT
-        DATEFROMPARTS(YEAR(sh.StartTime), MONTH(sh.StartTime), 1) AS MonthStart,
-        COUNT(*) * 8.0 AS TotalShiftHours  -- 8 hours per shift assumption
-    FROM FactShifts sh
-    GROUP BY DATEFROMPARTS(YEAR(sh.StartTime), MONTH(sh.StartTime), 1)
-)
 SELECT
-    FORMAT(d.MonthStart, 'yyyy-MM') AS [Month],
-    d.ServiceName,
-    d.TotalScheduledServices,
-    ISNULL(c.TotalShiftHours, 0) AS TotalShiftHours,
-    CASE WHEN d.TotalScheduledServices = 0 THEN NULL
-         ELSE (ISNULL(c.TotalShiftHours, 0) * 1.0) / d.TotalScheduledServices END AS MetricValue
-FROM Demand d
-LEFT JOIN Capacity c ON c.MonthStart = d.MonthStart
-ORDER BY [Month], d.ServiceName;";
-
+    FORMAT(sa.ScheduledDate, 'yyyy-MM') AS [Month],
+    COUNT(sa.AssignedID) AS TotalScheduledServices,
+    COUNT(DISTINCT sh.ShiftID) AS TotalShifts,
+    (COUNT(sa.AssignedID) * 1.0 / NULLIF(COUNT(DISTINCT sh.ShiftID), 0)) AS ServicesPerShift
+FROM FactServiceAssignment sa
+LEFT JOIN FactShifts sh
+    ON FORMAT(sa.ScheduledDate, 'yyyy-MM') = FORMAT(sh.StartTime, 'yyyy-MM')
+GROUP BY FORMAT(sa.ScheduledDate, 'yyyy-MM')
+ORDER BY [Month];
+";
                 case "damages":
                     return @"
 SELECT
